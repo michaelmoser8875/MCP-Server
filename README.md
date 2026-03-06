@@ -1,12 +1,12 @@
-# MCP Server 
-## Developed with Claude Code
+# MCP Server (FastMCP)
 
-A minimal [Model Context Protocol](https://modelcontextprotocol.io) server written in Python, with two example tools:
+A minimal [Model Context Protocol](https://modelcontextprotocol.io) server using [FastMCP](https://gofastmcp.com), with one tool, one prompt, and one resource.
 
-| Tool | Description |
-|------|-------------|
-| `get_weather` | Live weather for any city (powered by [wttr.in](https://wttr.in) — no API key needed) |
-| `calculate` | Safe evaluation of math expressions (`sqrt`, `sin`, `pi`, `**`, …) |
+| Type     | Name        | Description |
+|----------|-------------|-------------|
+| **Tool** | `calculate` | Safe math expression evaluation (`sqrt`, `sin`, `pi`, etc.) |
+| **Prompt** | `explain` | Ask the model to explain a topic in simple terms |
+| **Resource** | `app://info` | Server name and capabilities (read-only) |
 
 ---
 
@@ -34,21 +34,18 @@ pip install -r requirements.txt
 
 ### 3. Run the server
 
-MCP servers communicate over **stdio**, so you normally don't run the server directly — your MCP client launches it. See the client configuration section below.
-
-To verify the server starts without errors:
+MCP servers use **stdio** by default. Your MCP client launches the process. To verify it starts:
 
 ```bash
 python server.py
-# The process will block waiting for MCP messages — that's expected.
-# Press Ctrl+C to quit.
+# Blocks waiting for MCP messages. Press Ctrl+C to quit.
 ```
 
 ---
 
 ## Connecting to Claude Desktop
 
-Add the server to Claude Desktop's config file:
+Add to your Claude Desktop config:
 
 - **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
 - **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
@@ -64,49 +61,49 @@ Add the server to Claude Desktop's config file:
 }
 ```
 
-Replace the paths with the actual absolute paths on your machine. Restart Claude Desktop after saving.
+Use your actual paths and restart Claude Desktop.
 
 ---
 
-## Connecting via Claude Code (CLI)
+## Using with MCP Dashboard
+
+The MCP Dashboard launches this server as a subprocess and talks to it over stdio, so tools, resources, and prompts all appear in the UI.
+
+From the MCP-Dashboard directory (with Flask installed), run:
 
 ```bash
-claude mcp add example-server \
-  /absolute/path/to/MCP-Server/.venv/bin/python \
-  -- /absolute/path/to/MCP-Server/server.py
+# Unbuffered (-u) so the dashboard receives list responses immediately
+python app.py -- python -u path/to/MCP-Server/server.py
 ```
+
+Windows:
+
+```bash
+python app.py -- python -u path\to\MCP-Server\server.py
+```
+
+Use a Python that has both `flask` and `fastmcp` installed (or use the full path to this repo's venv Python if you use one).
+
+The dashboard will open at http://localhost:8080 and show the **calculate** tool, **app://info** resource, and **explain** prompt. You can try the tool, read the resource, and get the prompt from the browser.
 
 ---
 
-## Tool reference
+## Reference
 
-### `get_weather`
+### Tool: `calculate`
 
-```
-Input:  { "city": "Tokyo" }
-Output: Weather for Tokyo, Japan:
-          Condition : Partly cloudy
-          Temp      : 18°C / 64°F
-          Feels like: 17°C
-          Humidity  : 60%
-          Wind      : 15 km/h NE
-```
+- **Input:** `{ "expression": "sqrt(2) * pi" }`
+- **Output:** `"4.442882938158366"`
+- Supports: `+`, `-`, `*`, `/`, `**`, `%`, `//`, and functions like `abs`, `round`, `sqrt`, `ceil`, `floor`, `log`, `log10`, `sin`, `cos`, `tan`; constants `pi`, `e`.
 
-### `calculate`
+### Prompt: `explain`
 
-Supported operators: `+`, `-`, `*`, `/`, `**`, `%`, `//`
+- **Input:** `{ "topic": "recursion" }`
+- Returns a user message asking the model to explain the topic in simple terms.
 
-Supported functions: `abs`, `round`, `sqrt`, `ceil`, `floor`, `log`, `log10`, `sin`, `cos`, `tan`
+### Resource: `app://info`
 
-Constants: `pi`, `e`
-
-```
-Input:  { "expression": "sqrt(2) * pi" }
-Output: 4.442882938158366
-
-Input:  { "expression": "2 ** 10" }
-Output: 1024
-```
+- Read-only. Returns JSON: `{"name": "mcp-server", "capabilities": ["calculate", "prompts", "resources"]}`.
 
 ---
 
@@ -114,17 +111,9 @@ Output: 1024
 
 ```
 MCP-Server/
-├── server.py          # MCP server with tool implementations
-├── requirements.txt   # Python dependencies
+├── server.py
+├── requirements.txt
 └── README.md
 ```
 
----
-
-## Extending the server
-
-To add a new tool:
-
-1. Add a `types.Tool(...)` entry inside `handle_list_tools()`.
-2. Add a matching `elif name == "your_tool":` branch inside `handle_call_tool()`.
-3. Implement the tool logic as a plain function (sync) or `async` coroutine.
+To add more tools, prompts, or resources, use the `@mcp.tool`, `@mcp.prompt`, and `@mcp.resource(...)` decorators in `server.py`.
