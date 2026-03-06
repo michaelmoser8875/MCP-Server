@@ -1,4 +1,5 @@
 import ast
+import json
 import math
 import operator
 import sys
@@ -85,9 +86,9 @@ def calculate(expression: str) -> str:
 
 # --- Resource: server info ---
 @mcp.resource("app://info")
-def get_info() -> dict:
+def get_info() -> str:
     """Server name and capabilities."""
-    return {"name": "mcp-server", "capabilities": ["calculate", "prompts", "resources"]}
+    return json.dumps({"name": "mcp-server", "capabilities": ["calculate", "prompts", "resources"]}, indent=2)
 
 
 # --- Prompt: ask to explain a topic ---
